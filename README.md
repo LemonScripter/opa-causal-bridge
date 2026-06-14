@@ -1,8 +1,8 @@
 # DCC Causal Bridge for Open Policy Agent (OPA)
 
-[![Status](https://img.shields.io/badge/Status-Research--Prototype-blue)](ROADMAP.md)
-[![License](https://img.shields.io/badge/License-MIT-green)](LICENSE)
-[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.20384700.svg)](https://doi.org/10.5281/zenodo.20384700)
+[![Status](https://img.shields.io/badge/Status-Research--Prototype-blue)](https://github.com/LemonScripter/opa-causal-bridge/blob/master/ROADMAP.md)
+[![Project](https://img.shields.io/badge/BioOS-Causal--Security-green)](https://metaspace.bio)
+[![DOI](https://img.shields.io/badge/DOI-10.5281%2Fzenodo.20384700-purple)](https://doi.org/10.5281/zenodo.20384700)
 
 ## Overview
 
@@ -30,7 +30,7 @@ This implementation is based on the following formal specifications and research
 
 ## Empirical Proof
 
-Detailed execution logs and system environment details from our Tokyo Node can be found in [VERIFICATION.md](VERIFICATION.md).
+Detailed execution logs and system environment details from our Tokyo Node can be found in [VERIFICATION.md](https://github.com/LemonScripter/opa-causal-bridge/blob/master/VERIFICATION.md).
 
 ---
-*Developed by the MetaSpace BioOS Team | Security Engineering & Research*
+*MetaSpace.Bio Logic Project | [metaspace.bio](https://metaspace.bio) | [admin@metaspace.bio](mailto:admin@metaspace.bio)*
