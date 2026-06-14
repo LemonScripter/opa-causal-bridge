@@ -9,6 +9,8 @@
 
 The **DCC Causal Bridge** is a research-grade extension for the Open Policy Agent (OPA). It introduces **Digital Causal Closure (DCC)**—a security paradigm that binds Rego policy decisions to hardware-anchored causal events. By bridging the semantic gap between unprivileged policy evaluation and kernel-level execution lineage, it physically eliminates unauthorized autonomous mutations.
 
+### 🚀 [Run the Proof: Quickstart Guide](QUICKSTART.md)
+
 ### Key Value Propositions
 
 - **Fail-Closed Security Architecture:** Deterministic denial of all requests if the DCC verification service is unreachable or if a protocol violation occurs.

@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"net"
+	"runtime"
 	"time"
 
 	"github.com/open-policy-agent/opa/ast"
@@ -26,6 +27,7 @@ var (
 	ErrServiceOffline = errors.New("DCC service unreachable")
 	ErrProtocolError  = errors.New("DCC protocol violation")
 	ErrTimeout        = errors.New("DCC verification timeout")
+	ErrUnsupportedOS  = errors.New("DCC kernel anchoring is only supported on Linux")
 )
 
 func Register() {
@@ -41,6 +43,13 @@ func Register() {
 				return nil, err
 			}
 
+			// OS Interoperability: DCC is currently kernel-anchored on Linux.
+			// On other OSs, we enforce a Fail-Closed posture.
+			if runtime.GOOS != "linux" && runtime.GOOS != "darwin" {
+				// Note: Darwin added for potential future expansion, but currently unsupported.
+				return ast.BooleanTerm(false), nil
+			}
+
 			// Fail-Closed Logic: Any error in verification returns false
 			verified, err := verifyCausalState(bctx.Context, requestID)
 			if err != nil {
@@ -54,6 +63,11 @@ func Register() {
 }
 
 func verifyCausalState(ctx context.Context, id string) (bool, error) {
+	// Re-verify OS support at the dialer level
+	if runtime.GOOS != "linux" && runtime.GOOS != "darwin" {
+		return false, ErrUnsupportedOS
+	}
+
 	d := net.Dialer{Timeout: DCCDialTimeout}
 	
 	conn, err := d.DialContext(ctx, "unix", DCCSocketPath)
