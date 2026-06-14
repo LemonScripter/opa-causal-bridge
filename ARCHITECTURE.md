@@ -1,39 +1,45 @@
-# DCC Causal Bridge: Architectural Specification
+# ARCHITECTURE.md: Causal Enforcement Specification
 
-This document describes the flow of information and the security boundaries within the Digital Causal Closure (DCC) integration for Open Policy Agent.
+This document defines the architectural boundaries and the information flow of the DCC Causal Bridge for OPA.
 
-## Operational Flow
+## 1. System Data Flow
 
-1.  **Policy Evaluation (Rego):** A request arrives at OPA. The policy includes a call to `dcc.is_verified(input.request_id)`.
-2.  **Go Built-in Execution:** The custom OPA extension intercepts the call. It extracts the `request_id` and initiates a synchronous query.
-3.  **Unix Socket Bridge:** The extension connects to `/var/run/bioos/dcc.sock`. This provides a high-performance, local-only communication path.
-4.  **DCC Service (Daemon):** A privileged daemon receives the request. It acts as the gatekeeper between userspace OPA and the Linux Kernel.
-5.  **Kernel Verification (eBPF/LSM):** The daemon performs a `bpf_map_lookup_elem` on the `global_dcc_map`. 
-    *   The map is populated by **Tetragon LSM hooks** triggered by physical IRQs (Human/Hardware intent).
-    *   The kernel verifies the PID, Intent ID, and the 500ms Causality Window.
-6.  **Response Path:** The result (Verified/Denied) propagates back through the socket to OPA, where the Rego policy completes its decision.
+The verification process follows a deterministic, four-layer vertical integration:
 
-## Security Boundaries
+1.  **Policy Layer (Rego):** OPA evaluates a policy containing `dcc.is_verified(input.request_id)`.
+2.  **Extension Layer (Go):** The custom built-in intercepts the call and initiates a synchronous UDS dialer.
+3.  **Service Layer (DCC Daemon):** A privileged daemon receives the request and performs an atomic lookup in the kernel map.
+4.  **Enforcement Layer (eBPF/LSM):** The Linux kernel verifies the PID and intent ID against the `global_dcc_map`, populated by Tetragon LSM hooks.
 
-| Component | Privilege | Responsibility |
-| :--- | :--- | :--- |
-| **Rego Policy** | Unprivileged | High-level logical decision |
-| **Go Extension** | OPA Runtime | Protocol bridge & Fail-closed enforcement |
-| **DCC Service** | Root / CAP_BPF | Kernel map interaction |
-| **eBPF Module** | Ring 0 | Hardware-anchored truth & Atomic closure |
+## 2. Security Boundaries
 
-## Data Flow Diagram
+| Layer | Component | Privilege | Responsibility |
+| :--- | :--- | :--- | :--- |
+| **User (L1)** | Rego Policy | Unprivileged | High-level logical access control |
+| **Bridge (L2)** | Go Extension | OPA Runtime | Protocol fail-closed enforcement |
+| **Control (L3)** | DCC Daemon | Root / CAP_BPF | Kernel IPC & Map management |
+| **Trust (L4)** | eBPF Module | Ring 0 | Hardware-anchored causal truth |
+
+## 3. Fail-Closed Implementation
+
+The bridge implements a strict fail-closed posture at Layer 2. Any failure in the communication or verification path results in a `false` (DENY) response to the OPA engine.
+
+- **DCC_OFFLINE:** Immediate denial if UDS is missing.
+- **DCC_TIMEOUT:** 100ms hard limit on verification latency.
+- **DCC_PROTOCOL_ERR:** Denial on malformed or partial status reads.
+
+## 4. Logical Interaction Diagram
 
 ```text
-[ User Request ] -> [ OPA Engine (Rego) ]
-                          |
-                  [ dcc.is_verified() ]  <-- (Go Built-in)
-                          |
-               (Unix Domain Socket)
-                          |
-                  [ DCC Daemon ]         <-- (Verification Logic)
-                          |
-               (eBPF Map Lookup)
-                          |
-               [ Linux Kernel (LSM) ]    <-- (Hardware Anchor)
+[ Admission Request ] -> [ OPA Engine (Rego) ]
+                                |
+                      [ dcc.is_verified() ]    <-- (L2: Go Extension)
+                                |
+                    (Unix Domain Socket / IPC)
+                                |
+                        [ DCC Daemon ]         <-- (L3: Verification Logic)
+                                |
+                     (bpf_map_lookup_elem)
+                                |
+                     [ Linux Kernel (LSM) ]    <-- (L4: Hardware Anchor)
 ```
