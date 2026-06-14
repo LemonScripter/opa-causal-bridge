@@ -1,20 +1,11 @@
 name: DCC Logic Verification
 
-on:
-  push:
-    branches: [ master, main ]
-  pull_request:
-    branches: [ master, main ]
+on: [push]
 
 jobs:
   verify:
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v3
-    - name: Set up Python
-      uses: actions/setup-python@v4
-      with:
-        python-version: '3.10'
     - name: Run Causal Logic Tests
-      run: |
-        python3 tests/verify_opa.py
+      run: python3 tests/verify_opa.py
