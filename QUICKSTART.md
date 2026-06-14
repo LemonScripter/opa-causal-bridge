@@ -1,48 +1,50 @@
-# Quickstart: Verifying Digital Causal Closure (DCC) in OPA
+# Quickstart: DCC Causal Enforcement for OPA
 
-This guide provides step-by-step instructions to run the DCC Causal Bridge and verify the results yourself.
+This guide provides a self-contained, 3-step environment to verify the **Digital Causal Closure (DCC)** integration for OPA.
 
 ## Prerequisites
-- **Go** (1.21 or later)
-- **Linux** or **macOS** (for Unix Domain Socket support)
-- **OPA CLI** (Optional, for manual evaluation)
+- **Go** (1.21+)
+- **Curl** (for API verification)
+- **Linux** or **macOS**
 
-## Step 1: Clone and Build the Proof
+## Step 1: Build the DCC Environment
+Clone the repository and build the binary:
 ```bash
 git clone https://github.com/LemonScripter/opa-causal-bridge.git
 cd opa-causal-bridge
 make build
 ```
 
-## Step 2: Start the DCC Mock Service
-In a separate terminal, start the service that simulates the BioOS kernel bridge:
+## Step 2: Spin up the DCC Sidecar
+Start the standalone verification service. This service simulates the BioOS kernel bridge:
 ```bash
-go run tests/dcc_mock_service.go
-```
-*Note: The mock service listens on `/tmp/dcc_test.sock`. For this demo, we'll point the extension to this path.*
-
-## Step 3: Run the Automated Verification
-The included Python suite performs a comprehensive logic check (temporal integrity, anti-replay):
-```bash
-make test-integration
+./bin/dcc-sidecar --mode sidecar --addr 127.0.0.1:8080
 ```
 
-## Step 4: Manual Verification with OPA
-You can test the logic closure using the OPA Go SDK or by running a custom OPA build that includes the `dcc` package.
+## Step 3: Verify the Logic
+In a separate terminal, run the automated reproduction script to see the "Fail-Closed" behavior in action:
+```bash
+./reproduce.sh
+```
 
-### Logic Flow Verification:
-1. **Verified Request:** Use an ID starting with `VALID-`.
-   - Result: `dcc.is_verified("VALID-123")` -> **true**
-2. **Orphaned Request:** Use any other ID.
-   - Result: `dcc.is_verified("ghost-456")` -> **false** (Fail-Closed)
-3. **Replay Protection:** Use the same `VALID-` ID twice.
-   - Result: Second attempt -> **false** (Atomic Consumption)
+### Integration Paths
 
-## Why a Custom Built-in vs. `http.send`?
-While OPA's `http.send` can communicate over Unix sockets, a dedicated `dcc.is_verified` built-in provides:
-1. **Atomic Security Semantic:** Hardcoded fail-closed behavior and nanosecond-accurate temporal checks.
-2. **Reduced Complexity:** Policy authors don't need to know the UDS binary protocol; they use a single, high-level primitive.
-3. **Auditability:** Specific error types (`ErrServiceOffline`, `ErrTimeout`) allow for fine-grained security auditing at the OPA runtime level.
+You can integrate DCC with OPA using two different paradigms:
+
+1.  **Standalone Sidecar (Recommended for Interoperability):**
+    OPA calls the DCC service via the native `http.send` built-in.
+    ```rego
+    allow {
+        resp := http.send({"method": "get", "url": "http://localhost:8080/verify?request_id=" + input.request_id})
+        resp.body.verified == true
+    }
+    ```
+2.  **Native Go Plugin:**
+    For custom OPA builds, use the high-performance `dcc.is_verified(id)` built-in registered in `src/main.go`.
+
+## Verification Scenarios
+- **Authorized:** Request IDs starting with `VALID-` simulate a hardware-verified intent.
+- **Fail-Closed:** Any network error, timeout, or missing token results in a `verified: false` status, ensuring maximum security.
 
 ---
-*MetaSpace.Bio Logic Project | [metaspace.bio](https://metaspace.bio)*
+*Production-Grade Research Prototype by MetaSpace BioOS Team*
