@@ -1,7 +1,7 @@
 # DCC Causal Bridge for Open Policy Agent (OPA)
 
-[![Verify](https://github.com/LemonScripter/opa-causal-bridge/actions/workflows/verify.yml/badge.svg)](https://github.com/LemonScripter/opa-causal-bridge/actions/workflows/verify.yml)
-[![Status](https://img.shields.io/badge/Status-Research--Prototype-blue)](https://github.com/LemonScripter/opa-causal-bridge/blob/master/ROADMAP.md)
+[![Verified](https://img.shields.io/badge/Verified-Tokyo--Node-green)](VERIFICATION.md)
+[![Status](https://img.shields.io/badge/Status-Research--Prototype-blue)](ROADMAP.md)
 [![Project](https://img.shields.io/badge/BioOS-Causal--Security-green)](https://metaspace.bio)
 [![DOI](https://img.shields.io/badge/DOI-10.5281%2Fzenodo.20384700-purple)](https://doi.org/10.5281/zenodo.20384700)
 
@@ -31,7 +31,7 @@ This implementation is based on the following formal specifications and research
 
 ## Empirical Proof
 
-Detailed execution logs and system environment details from our Tokyo Node can be found in [VERIFICATION.md](https://github.com/LemonScripter/opa-causal-bridge/blob/master/VERIFICATION.md).
+Detailed execution logs and system environment details from our Tokyo Node can be found in [VERIFICATION.md](VERIFICATION.md).
 
 ---
 *MetaSpace.Bio Logic Project | [metaspace.bio](https://metaspace.bio) | [admin@metaspace.bio](mailto:admin@metaspace.bio)*
