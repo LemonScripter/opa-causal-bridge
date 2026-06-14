@@ -2,6 +2,7 @@ package dcc
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"net"
 	"time"
@@ -11,24 +12,28 @@ import (
 )
 
 /*
- * OPA DCC Causal Built-in (Go)
- *
- * This extension adds the 'dcc.is_verified' function to the Rego language.
- * It queries the BioOS DCC verification service (local unix socket) to confirm
- * if a Request ID is backed by a verified hardware-anchored causal chain.
+ * DCC OPA Built-in: Hardened Implementation
  */
 
 const (
-	DCCSocketPath = "/var/run/bioos/dcc.sock"
+	DCCSocketPath  = "/var/run/bioos/dcc.sock"
 	DCCDialTimeout = 100 * time.Millisecond
+	DCCReadTimeout = 50 * time.Millisecond
+)
+
+// Custom error types for fine-grained logging and security auditing
+var (
+	ErrServiceOffline = errors.New("DCC service unreachable")
+	ErrProtocolError  = errors.New("DCC protocol violation")
+	ErrTimeout        = errors.New("DCC verification timeout")
 )
 
 func Register() {
 	rego.RegisterBuiltin1(
 		&rego.Function{
-			Name:             "dcc.is_verified",
-			Decl:             ast.NewFunction(ast.Var("dcc.is_verified"), ast.String),
-			Memoize:          true,
+			Name:    "dcc.is_verified",
+			Decl:    ast.NewFunction(ast.Var("dcc.is_verified"), ast.String),
+			Memoize: true,
 		},
 		func(bctx rego.BuiltinContext, op1 *ast.Term) (*ast.Term, error) {
 			var requestID string
@@ -36,10 +41,10 @@ func Register() {
 				return nil, err
 			}
 
-			// Perform real causal verification via DCC service
+			// Fail-Closed Logic: Any error in verification returns false
 			verified, err := verifyCausalState(bctx.Context, requestID)
 			if err != nil {
-				// We log the error but return false to enforce "Fail-Closed" security
+				// Audit log entry would go here in a production BioOS environment
 				return ast.BooleanTerm(false), nil
 			}
 
@@ -48,25 +53,37 @@ func Register() {
 	)
 }
 
-// verifyCausalState connects to the DCC daemon and verifies the token for the given request.
 func verifyCausalState(ctx context.Context, id string) (bool, error) {
 	d := net.Dialer{Timeout: DCCDialTimeout}
+	
 	conn, err := d.DialContext(ctx, "unix", DCCSocketPath)
 	if err != nil {
-		return false, fmt.Errorf("failed to connect to DCC service: %w", err)
+		return false, fmt.Errorf("%w: %v", ErrServiceOffline, err)
 	}
 	defer conn.Close()
 
-	// Protocol: Write Request ID, Read 1-byte status (0x01 = Verified, 0x00 = Failed)
+	// Set deadline for the entire operation to prevent OPA hanging
+	deadline := time.Now().Add(DCCReadTimeout)
+	conn.SetDeadline(deadline)
+
+	// Protocol: RequestID (max 256 bytes)
 	_, err = conn.Write([]byte(id))
 	if err != nil {
-		return false, fmt.Errorf("failed to write to DCC service: %w", err)
+		return false, fmt.Errorf("%w: failed to write request", ErrProtocolError)
 	}
 
+	// Expect 1-byte response: 0x01 (Verified) or 0x00 (Denied)
 	buf := make([]byte, 1)
-	_, err = conn.Read(buf)
+	n, err := conn.Read(buf)
 	if err != nil {
-		return false, fmt.Errorf("failed to read from DCC service: %w", err)
+		if netErr, ok := err.(net.Error); ok && netErr.Timeout() {
+			return false, ErrTimeout
+		}
+		return false, fmt.Errorf("%w: failed to read response", ErrProtocolError)
+	}
+
+	if n != 1 {
+		return false, fmt.Errorf("%w: invalid response length", ErrProtocolError)
 	}
 
 	return buf[0] == 0x01, nil

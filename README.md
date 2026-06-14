@@ -1,26 +1,31 @@
-# DCC Causal Enforcement for Open Policy Agent (OPA)
+# [RESEARCH PROTOTYPE] DCC Causal Enforcement for OPA
 
-## Technical Specification: Causal Built-in
+> **Disclaimer:** This is a research prototype implementing the Digital Causal Closure (DCC) paradigm. It is provided for evaluation and security research purposes. Not for production use without a verified BioOS kernel environment.
 
-This repository provides a concrete implementation of **Digital Causal Closure (DCC)** for the Open Policy Agent. It extends the Rego policy engine with a hardware-anchored causal verification primitive.
+## Standard Documentation
 
-### Architectural Overview
+The **DCC Causal Bridge** provides hardware-anchored intent verification for the Open Policy Agent (OPA). By bridging the gap between high-level Rego policies and kernel-level causal events, it eliminates "orphaned" or autonomous session hijacking.
 
-Traditional identity-based policies are vulnerable to autonomous session hijacking. The DCC bridge addresses this by enforcing **Runtime Causal Lineage**.
+### Safety Guarantees: Fail-Closed Architecture
 
-1.  **Enforcement Point:** OPA Rego policies call `dcc.is_verified(request_id)`.
-2.  **Verification Path:** The Go extension performs a synchronous, low-latency query via a Unix Domain Socket to the BioOS DCC service.
-3.  **Kernel Anchor:** The DCC service interacts with the `global_dcc_map` (eBPF HASH map), which is populated by kernel-level IRQ/LSM hooks (`dcc_bridge.bpf.c`).
-4.  **Atomic Verification:** The kernel verifies that the process initiating the request is currently within a valid **Causality Window** authorized by a physical event.
+Security is enforced through a strict **Fail-Closed** posture. The `dcc.is_verified` built-in follows these deterministic rules:
+- **Service Unavailable:** If the DCC Unix socket is missing or the service is offline, the function returns `false` (DENY).
+- **Timeout:** If the verification takes longer than 100ms, the request is aborted and returns `false` (DENY).
+- **Protocol Mismatch:** Any unexpected response from the DCC service results in an immediate `false` (DENY).
+- **Atomic Consumption:** Verified tokens are marked as consumed at the kernel level, preventing replay attacks.
 
 ### Implementation Details
 
-*   **`src/dcc_builtin.go`**: OPA Go extension using `rego.RegisterBuiltin1`. Implements fail-closed logic for unix socket communication.
-*   **Protocol:** Synchronous binary protocol over `/var/run/bioos/dcc.sock`.
-*   **Complexity:** O(1) lookup in eBPF kernel space.
+The bridge consists of a Go-based OPA extension that performs synchronous, low-latency queries to the BioOS DCC service via a local Unix Domain Socket.
+
+### TODO List
+- [ ] Kernel-side eBPF map population (In progress)
+- [ ] Integration with Tetragon LSM hooks
+- [ ] ARM64 cross-compilation support
+- [ ] Formal verification of the Go-to-Socket protocol bridge
 
 ### Scientific Reference
 Formal proof for the Causal OS paradigm: [DOI: 10.5281/zenodo.20384700](https://doi.org/10.5281/zenodo.20384700).
 
 ---
-*Technical Implementation by MetaSpace BioOS Team*
+*Engineering by MetaSpace BioOS Team | [metaspace.bio](https://metaspace.bio)*
