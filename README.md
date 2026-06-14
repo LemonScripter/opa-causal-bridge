@@ -19,7 +19,14 @@ The **DCC Causal Bridge** is a research-grade extension for the Open Policy Agen
 
 - **Built-in:** `dcc.is_verified(request_id)` registered via OPA `rego.RegisterBuiltin1`.
 - **Enforcement:** Synchronous binary protocol over `/var/run/bioos/dcc.sock`.
-- **Verification:** Logic-verified against the [BioOS Causal Constitution](https://doi.org/10.5281/zenodo.20384700).
+- **Verification:** Logic-verified against the BioOS DCC standards.
+
+### Scientific & Technical Foundation
+
+This implementation is based on the following formal specifications and research:
+
+- **Research Paper:** [The Causal Operating System: Digital Causal Closure for Autonomous Systems](https://doi.org/10.5281/zenodo.20384700) (DOI: 10.5281/zenodo.20384700)
+- **Formal Specification:** [BioOS Causal Constitution (PDF)](https://bioos.metaspace.bio/bioos_causal_constitution_en.pdf)
 
 ## Empirical Proof
 
